@@ -37,6 +37,7 @@ async function fun() {
         const userCollections = client.db('PreciousCameras').collection('users');
         const categoryCollections = client.db('PreciousCameras').collection('categories');
         const productCollections = client.db('PreciousCameras').collection('products');
+        const bookingCollections = client.db('PreciousCameras').collection('bookings');
 
         app.get('/', (req, res) => {
             res.send("PreciousCameras server running.");
@@ -175,7 +176,7 @@ async function fun() {
             if (email === paramsEmail) {
                 const query = { email: email };
                 const result = await userCollections.findOne(query);
-              
+
                 res.send(result);
             }
         })
@@ -197,6 +198,14 @@ async function fun() {
             }
             const result = await userCollections.updateOne(filter, updatedDoc, options);
             res.send(result)
+        })
+        //  addd booking
+        app.post('/addbooking', verifyJWT, async (req, res) => {
+            const data = req.body;
+            const query = {};
+            const result = await bookingCollections.insertOne(data);
+            res.send(result)
+
         })
     }
     finally {
