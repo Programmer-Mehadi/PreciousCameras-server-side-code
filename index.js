@@ -168,6 +168,19 @@ async function fun() {
             const result = await productCollections.deleteOne(query);
             res.send(result)
         })
+        //  make advertise 
+        app.get('/makeadvertise/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id), email: req.decoded.email };
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    advertise: 'yes'
+                }
+            }
+            const result = await productCollections.updateOne(filter, updatedDoc, options);
+            res.send(result)
+        })
         //  all buyers get
         app.get('/allbuyers/:email', verifyJWT, async (req, res) => {
             const email = req.decoded.email;
