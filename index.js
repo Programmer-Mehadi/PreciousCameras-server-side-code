@@ -126,7 +126,6 @@ async function fun() {
             if (user && email === decodedEmail) {
                 if (user?.type === "Seller") {
                     const result = await productCollections.find(query).toArray();
-                    console.log(result);
                     res.send(result);
                 }
             }
@@ -157,6 +156,17 @@ async function fun() {
                 res.send(newData);
             }
 
+        })
+        //  product delete 
+        app.get('/deleteproduct/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const query = {
+                _id: ObjectId(id),
+                email: req.decoded.email
+            };
+            const result = await productCollections.deleteOne(query);
+            res.send(result)
         })
         //  all buyers get
         app.get('/allbuyers/:email', verifyJWT, async (req, res) => {
@@ -190,11 +200,11 @@ async function fun() {
         })
         //  get user orders
         app.get('/orders', verifyJWT, async (req, res) => {
-          
+
             if (req.decoded.email === req.query.email) {
                 const query = { customerEmail: req.decoded.email };
                 const result = await bookingCollections.find(query).toArray();
-               
+
                 res.send(result);
             }
 
