@@ -18,13 +18,13 @@ function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-        return res.status(401).send([{ status: 'unauthorized access' }])
+        return res.status(401).send({ status: 'unauthorized access' })
     }
     else {
         const token = authHeader.split(' ')[1];
         jwt.verify(token, process.env.ACCESS_TOKEN, function (e, decoded) {
             if (e) {
-                return res.status(403).send([{ status: 'Forbidden' }])
+                return res.status(403).send({ status: 'Forbidden' })
             }
             req.decoded = decoded;
             next()
@@ -126,7 +126,7 @@ async function fun() {
             if (user && email === decodedEmail) {
                 if (user?.type === "Seller") {
                     const result = await productCollections.find(query).toArray();
-
+                    console.log(result);
                     res.send(result);
                 }
             }
@@ -135,20 +135,28 @@ async function fun() {
         //  get product by id
         app.get('/category/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { category: id }
+            const query = { category: id, salesStatus: "available" }
             let products = await productCollections.find(query).toArray();
             let allUsers = await userCollections.find({}).toArray();
-            let newData = products.map(product => {
-                allUsers.map(user => {
-                    if (user.email == product.email) {
-                        product["userName"] = user.name;
-                        product["verify"] = user?.verify;
-                    }
-                })
-                return product;
-            })
+            if (products.length === 0) {
 
-            res.send(newData);
+                const query = { _id: ObjectId(id) };
+                const result = await categoryCollections.findOne(query);
+                res.send({ name: result?.name })
+            }
+            else {
+                let newData = products.map(product => {
+                    allUsers.map(user => {
+                        if (user.email == product.email) {
+                            product["userName"] = user.name;
+                            product["verify"] = user?.verify;
+                        }
+                    })
+                    return product;
+                })
+                res.send(newData);
+            }
+
         })
         //  all buyers get
         app.get('/allbuyers/:email', verifyJWT, async (req, res) => {
@@ -180,8 +188,19 @@ async function fun() {
                 res.send(result);
             }
         })
+        //  get user orders
+        app.get('/orders', verifyJWT, async (req, res) => {
+          
+            if (req.decoded.email === req.query.email) {
+                const query = { customerEmail: req.decoded.email };
+                const result = await bookingCollections.find(query).toArray();
+               
+                res.send(result);
+            }
 
-        app.delete('/userDelete/:id', verifyJWT, async (req, res) => {
+
+        })
+        app.delete('/userdelete/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
             const result = await userCollections.deleteOne(query);
