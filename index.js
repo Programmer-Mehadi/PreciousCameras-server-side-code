@@ -38,6 +38,7 @@ async function fun() {
         const categoryCollections = client.db('PreciousCameras').collection('categories');
         const productCollections = client.db('PreciousCameras').collection('products');
         const bookingCollections = client.db('PreciousCameras').collection('bookings');
+        const reportedCollections = client.db('PreciousCameras').collection('reportedItems');
 
         app.get('/', (req, res) => {
             res.send("PreciousCameras server running.");
@@ -46,6 +47,9 @@ async function fun() {
             const query = {};
             const result = await categoryCollections.find(query).toArray();
             res.send(result);
+        })
+        app.get('/uservalidationcheck', verifyJWT, async (req, res) => {
+            res.status(401).send({ status: 'Good' })
         })
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
@@ -160,7 +164,7 @@ async function fun() {
         //  product delete 
         app.get('/deleteproduct/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-            console.log(id);
+          
             const query = {
                 _id: ObjectId(id),
                 email: req.decoded.email
@@ -220,14 +224,59 @@ async function fun() {
 
                 res.send(result);
             }
-
-
         })
+        //  reort to admin
+        app.post('/reporttoadmin/:id', verifyJWT, async (req, res) => {
+            if (req.params.id === req.body.itemId) {
+                const data = req.body;
+                const query = { itemId: data.itemId, userEmail: data.userEmail };
+                const found = await reportedCollections.findOne(query);
+             
+                if (!found) {
+                    const result = await reportedCollections.insertOne(data);
+                    res.send(result);
+                }
+                else {
+                    res.send({ ownStatus: 'Already reported!' })
+                }
+
+            }
+        })
+        //  get all reported items 
+        app.get('/reporteditems', verifyJWT, async (req, res) => {
+            const query = {};
+            const reportedItems = await reportedCollections.find(query).toArray();
+            const products = await productCollections.find(query).toArray();
+            let reportedProduct = []
+            products.filter(product => {
+                const myObjectId = product._id;
+                id = myObjectId.toString()
+                reportedItems.map(item => {
+                    if (item.itemId == id) {
+                      
+                        reportedProduct.push(product);
+                    }
+                })
+            })
+            res.send(reportedProduct);
+        })
+        //  delete user
         app.delete('/userdelete/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
             const result = await userCollections.deleteOne(query);
             res.send(result)
+        })
+        //  reported products delete 
+        app.delete('/reportedproductdelete/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const result = await productCollections.deleteOne(query);
+            if (result.deletedCount > 0) {
+                const query2 = { itemId: id }
+                const deleteStatus = await reportedCollections.deleteOne(query2);
+                res.send(deleteStatus)
+            }
         })
         app.patch('/userverify/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
