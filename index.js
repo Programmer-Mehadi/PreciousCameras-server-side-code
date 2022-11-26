@@ -41,7 +41,7 @@ async function fun() {
         const reportedCollections = client.db('PreciousCameras').collection('reportedItems');
 
         app.get('/', (req, res) => {
-            res.send("PreciousCameras server running.");
+            res.send("PreciousCameras server running clean.");
         })
         app.get('/categories', async (req, res) => {
             const query = {};
