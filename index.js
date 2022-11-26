@@ -77,7 +77,7 @@ async function fun() {
                 res.send(result);
             }
             else {
-                res.send({ status: "No insert." })
+                res.send({ status: "Already inserted." })
             }
         })
         // admin , buyer , seller check
@@ -164,7 +164,7 @@ async function fun() {
         //  product delete 
         app.get('/deleteproduct/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-          
+
             const query = {
                 _id: ObjectId(id),
                 email: req.decoded.email
@@ -231,7 +231,7 @@ async function fun() {
                 const data = req.body;
                 const query = { itemId: data.itemId, userEmail: data.userEmail };
                 const found = await reportedCollections.findOne(query);
-             
+
                 if (!found) {
                     const result = await reportedCollections.insertOne(data);
                     res.send(result);
@@ -253,7 +253,7 @@ async function fun() {
                 id = myObjectId.toString()
                 reportedItems.map(item => {
                     if (item.itemId == id) {
-                      
+
                         reportedProduct.push(product);
                     }
                 })
@@ -272,6 +272,8 @@ async function fun() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
             const result = await productCollections.deleteOne(query);
+            const removeBooking = await bookingCollections.deleteMany({ itemId: id });
+            
             if (result.deletedCount > 0) {
                 const query2 = { itemId: id }
                 const deleteStatus = await reportedCollections.deleteOne(query2);
@@ -290,12 +292,20 @@ async function fun() {
             const result = await userCollections.updateOne(filter, updatedDoc, options);
             res.send(result)
         })
-        //  addd booking
+        //  add booking
         app.post('/addbooking', verifyJWT, async (req, res) => {
             const data = req.body;
-            const query = {};
-            const result = await bookingCollections.insertOne(data);
-            res.send(result)
+            const query = { itemId: data.itemId, customerEmail: data.customerEmail };
+            const found = await bookingCollections.findOne(query);
+            if (!found) {
+                const result = await bookingCollections.insertOne(data);
+                res.send(result)
+            }
+            else {
+                res.send({ ownStatus: 'You already booked it.' })
+            }
+            // console.log(data)
+
 
         })
     }
