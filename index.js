@@ -3,7 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 require('dotenv').config()
-
+const stripe = require("stripe")(`${process.env.STRIPE_SK}`);
 
 const app = express();
 app.use(cors())
@@ -77,7 +77,7 @@ async function fun() {
                 res.send(result);
             }
             else {
-                res.send({ status: "Already inserted." })
+                res.send({ ownStatus: "Already inserted." })
             }
         })
         // admin , buyer , seller check
@@ -105,6 +105,13 @@ async function fun() {
             const query = { email: email };
             const user = await userCollections.findOne(query);
             res.send(user);
+        })
+        //  get advetised items
+        app.get('/advertiseditems', async (req, res) => {
+            const query = { advertise: "yes", salesStatus: "available" };
+            const advertisedItems = await productCollections.find(query).toArray();
+            console.log(advertisedItems);
+            res.send(advertisedItems);
         })
         //  add product 
         app.post('/addproduct', verifyJWT, async (req, res) => {
@@ -273,7 +280,7 @@ async function fun() {
             const query = { _id: ObjectId(id) }
             const result = await productCollections.deleteOne(query);
             const removeBooking = await bookingCollections.deleteMany({ itemId: id });
-            
+
             if (result.deletedCount > 0) {
                 const query2 = { itemId: id }
                 const deleteStatus = await reportedCollections.deleteOne(query2);
@@ -306,6 +313,29 @@ async function fun() {
             }
             // console.log(data)
 
+
+        })
+        app.get('/bookings/:id', async (req, res) => {
+            const query = { itemId: req.params.id };
+            const result = await bookingCollections.findOne(query);
+            res.send(result);
+        })
+        app.post('/create-payment-intent', async (req, res) => {
+
+            const price = req.body.price;
+            const amount = price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: "BDT",
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ]
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
 
         })
     }
