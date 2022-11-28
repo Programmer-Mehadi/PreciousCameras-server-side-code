@@ -110,8 +110,26 @@ async function fun() {
         app.get('/advertiseditems', async (req, res) => {
             const query = { advertise: "yes", salesStatus: "available" };
             const advertisedItems = await productCollections.find(query).toArray();
-            console.log(advertisedItems);
-            res.send(advertisedItems);
+
+            if (advertisedItems.length > 0) {
+                let allUsers = await userCollections.find({}).toArray();
+
+                let newData = advertisedItems.map(product => {
+                    allUsers.map(user => {
+
+                        if (user.email == product.email) {
+                            product["userName"] = user.name;
+                            product["verify"] = user?.verify;
+                            product["photoURL"] = user?.photoURL;
+                        }
+                    })
+                    return product;
+                })
+                res.send(newData);
+            }
+            else {
+                res.send(advertisedItems);
+            }
         })
         //  add product 
         app.post('/addproduct', verifyJWT, async (req, res) => {
@@ -122,8 +140,10 @@ async function fun() {
             if (user) {
                 if (user?.type === "Seller") {
                     const result = await productCollections.insertOne(product);
-
                     res.send(result);
+                }
+                else {
+                    res.send({ownStatus:"Not Access."})
                 }
             }
 
@@ -149,7 +169,6 @@ async function fun() {
             let products = await productCollections.find(query).toArray();
             let allUsers = await userCollections.find({}).toArray();
             if (products.length === 0) {
-
                 const query = { _id: ObjectId(id) };
                 const result = await categoryCollections.findOne(query);
                 res.send({ name: result?.name })
@@ -160,6 +179,7 @@ async function fun() {
                         if (user.email == product.email) {
                             product["userName"] = user.name;
                             product["verify"] = user?.verify;
+                            product["photoURL"] = user?.photoURL;
                         }
                     })
                     return product;
@@ -171,12 +191,19 @@ async function fun() {
         //  product delete 
         app.get('/deleteproduct/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-
             const query = {
                 _id: ObjectId(id),
                 email: req.decoded.email
             };
             const result = await productCollections.deleteOne(query);
+
+            const query2 = {
+                itemId: id,
+                isPaid: 'no',
+                salesStatus:'available'
+            };
+            const result2 = await bookingCollections.deleteMany(query2);
+
             res.send(result)
         })
         //  make advertise 
@@ -197,7 +224,7 @@ async function fun() {
             const email = req.decoded.email;
             const paramsEmail = req.params.email;
             if (email === paramsEmail) {
-                const query = { type: "Buyer" };
+                const query = { type: "Buyer"  };
                 const result = await userCollections.find(query).toArray();
                 res.send(result);
             }
@@ -218,8 +245,12 @@ async function fun() {
             if (email === paramsEmail) {
                 const query = { email: email };
                 const result = await userCollections.findOne(query);
-
-                res.send(result);
+                if (result) {
+                    res.send(result);
+                }
+                else {
+                    res.send({ownStatus:'not found'})
+                }
             }
         })
         //  get user orders
@@ -228,8 +259,19 @@ async function fun() {
             if (req.decoded.email === req.query.email) {
                 const query = { customerEmail: req.decoded.email };
                 const result = await bookingCollections.find(query).toArray();
-
-                res.send(result);
+                const products = await productCollections.find({}).toArray();
+                const newData = result.map(order => {
+                    const orderId = order.itemId;
+                    products.map(product => {
+                        const myObjectId = product._id;
+                        id = myObjectId.toString()
+                        if (id === orderId) {
+                            order["salesStatus"] = product.salesStatus;
+                        }
+                    })
+                    return order;
+                })
+                res.send(newData);
             }
         })
         //  reort to admin
@@ -301,7 +343,9 @@ async function fun() {
         })
         //  add booking
         app.post('/addbooking', verifyJWT, async (req, res) => {
-            const data = req.body;
+            let data = req.body;
+            data['isPaid'] = 'no';
+            data['salesStatus'] = 'available';
             const query = { itemId: data.itemId, customerEmail: data.customerEmail };
             const found = await bookingCollections.findOne(query);
             if (!found) {
@@ -311,15 +355,17 @@ async function fun() {
             else {
                 res.send({ ownStatus: 'You already booked it.' })
             }
-            // console.log(data)
-
-
         })
-        app.get('/bookings/:id', async (req, res) => {
-            const query = { itemId: req.params.id };
+        app.get('/bookings/:id', verifyJWT, async (req, res) => {
+            const email = req.decoded.email;
+            const query = {
+                itemId: req.params.id,
+                customerEmail: email
+            };
             const result = await bookingCollections.findOne(query);
             res.send(result);
         })
+
         app.post('/create-payment-intent', async (req, res) => {
 
             const price = req.body.price;
@@ -336,6 +382,39 @@ async function fun() {
             res.send({
                 clientSecret: paymentIntent.client_secret,
             });
+
+        })
+        app.put('/confirmorder', async (req, res) => {
+            const transactionId = req.query.transactionId;
+            console.log(transactionId);
+            const bookingId = req.query.id;
+            const itemId = req.query.itemId;
+
+            const filter = { _id: ObjectId(itemId) };
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    salesStatus: 'sold',
+                    transactionId: transactionId
+                }
+            }
+            const result = await productCollections.updateOne(filter, updatedDoc, options);
+            if (result.modifiedCount == 1) {
+                const filterBooking = { _id: ObjectId(bookingId) };
+                const optionsBooking = { upsert: true };
+                const updatedDocBooking = {
+                    $set: {
+                        salesStatus: 'sold',
+                        isPaid: 'yes',
+                        transactionId: transactionId
+                    }
+                }
+                const finalResult = await bookingCollections.updateOne(filterBooking, updatedDocBooking, optionsBooking);
+                res.send(finalResult);
+            }
+            else {
+                res.send({ ownStatus: 'Something Wrong!' });
+            }
 
         })
     }
