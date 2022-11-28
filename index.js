@@ -358,6 +358,7 @@ async function fun() {
         })
         app.get('/bookings/:id', verifyJWT, async (req, res) => {
             const email = req.decoded.email;
+            console.log(email)
             const query = {
                 itemId: req.params.id,
                 customerEmail: email
