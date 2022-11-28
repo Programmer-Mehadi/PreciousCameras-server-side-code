@@ -65,6 +65,7 @@ async function fun() {
                 res.status(403).send({ accessToken: 'No token' })
             }
         })
+    
         //  add new users 
         app.post('/addusers', async (req, res) => {
             const user = req.body;
@@ -358,7 +359,7 @@ async function fun() {
         })
         app.get('/bookings/:id', verifyJWT, async (req, res) => {
             const email = req.decoded.email;
-            console.log(email)
+      
             const query = {
                 itemId: req.params.id,
                 customerEmail: email
@@ -387,7 +388,7 @@ async function fun() {
         })
         app.put('/confirmorder', async (req, res) => {
             const transactionId = req.query.transactionId;
-            console.log(transactionId);
+       
             const bookingId = req.query.id;
             const itemId = req.query.itemId;
 
